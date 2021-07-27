@@ -1,0 +1,113 @@
+[
+    {
+        "label":  "Details",
+        "fields":  [
+                       {
+                           "key":  "RoomName",
+                           "templateOptions":  {
+                                                   "label":  "RoomName",
+                                                   "required":  true,
+                                                   "minLength":  2
+                                               },
+                           "type":  "input",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "emailAddress",
+                           "templateOptions":  {
+                                                   "label":  "EmailAddress",
+                                                   "useDataSource":  false,
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_0",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "emailAddress",
+                                                                                                                     "staticValue":  {
+                                                                                                                                         "value":  "EmailAddress"
+                                                                                                                                     }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "displayField":  "EmailAddress"
+                                               },
+                           "type":  "input",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "ResourceCapacity",
+                           "templateOptions":  {
+                                                   "label":  "ResourceCapacity",
+                                                   "placeholder":  "10"
+                                               },
+                           "type":  "input",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       }
+                   ]
+    },
+    {
+        "label":  "Naming",
+        "fields":  [
+                       {
+                           "key":  "Naming",
+                           "templateOptions":  {
+                                                   "label":  "RoomMail that will be created",
+                                                   "required":  false,
+                                                   "grid":  {
+                                                                "columns":  [
+                                                                                {
+                                                                                    "headerName":  "Displayname",
+                                                                                    "field":  "displayname"
+                                                                                },
+                                                                                {
+                                                                                    "headerName":  "User Principal Name",
+                                                                                    "field":  "userPrincipalName"
+                                                                                },
+                                                                                {
+                                                                                    "headerName":  "Email Address",
+                                                                                    "field":  "EmailAddress"
+                                                                                }
+                                                                            ],
+                                                                "height":  300,
+                                                                "rowSelection":  "single"
+                                                            },
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_1",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "RoomName",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "RoomName"
+                                                                                                                                         }
+                                                                                                                 },
+                                                                                                                 {
+                                                                                                                     "propertyName":  "EmailAddress",
+                                                                                                                     "staticValue":  {
+                                                                                                                                         "value":  "EmailAddress"
+                                                                                                                                     }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useDefault":  false
+                                               },
+                           "type":  "grid",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  true
+                       }
+                   ]
+    }
+]

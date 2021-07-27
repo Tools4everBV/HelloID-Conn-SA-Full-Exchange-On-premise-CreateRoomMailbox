@@ -1,0 +1,18 @@
+[
+    {
+        "description":  null,
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "RoomName",
+        "type":  0,
+        "options":  1
+    },
+    {
+        "description":  null,
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "EmailAddress",
+        "type":  0,
+        "options":  1
+    }
+]

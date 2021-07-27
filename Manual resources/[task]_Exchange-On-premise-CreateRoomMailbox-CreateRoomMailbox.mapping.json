@@ -1,0 +1,14 @@
+[
+    {
+        "name":  "EmailAddress",
+        "value":  "{{form.Naming.EmailAddress}}"
+    },
+    {
+        "name":  "ResourceCapacity",
+        "value":  "{{form.ResourceCapacity}}"
+    },
+    {
+        "name":  "RoomName",
+        "value":  "{{form.Naming.displayname}}"
+    }
+]

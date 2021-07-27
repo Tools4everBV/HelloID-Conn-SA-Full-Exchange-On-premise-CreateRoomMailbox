@@ -1,0 +1,14 @@
+[
+    {
+        "key":  "displayname",
+        "type":  0
+    },
+    {
+        "key":  "userPrincipalName",
+        "type":  0
+    },
+    {
+        "key":  "EmailAddress",
+        "type":  0
+    }
+]
