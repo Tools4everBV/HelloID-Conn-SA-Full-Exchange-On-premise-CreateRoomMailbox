@@ -26,7 +26,7 @@ try {
     $domainName = (Get-AcceptedDomain)[0].DomainName
 
     # create lookup table
-    $allMailboxes = Get-Mailbox -Filter "Name -eq '$RoomMailboxName' -or EmailAddresses -eq '$emailAddress'"
+    $allMailboxes = Get-Mailbox | Select-Object PrimarySmtpAddress, Name
     $allMailboxesGroupedByPrimary = $allMailboxes | Group-Object -Property PrimarySmtpAddress -AsHashTable
     $allMailboxesGroupedByName = $allMailboxes | Group-Object -Property Name -AsHashTable
 
@@ -54,7 +54,7 @@ try {
     $returnObject = @{
         displayname       = $roomName
         userPrincipalName = "$roomName@$domainName"
-        EmailAddress      = $newEmail
+        EmailAddress = $newEmail
     }
     Write-Output $returnObject
 } catch {
