@@ -8,6 +8,7 @@ This HelloID Service Automation Delegated Form provides the functionality to cre
 ## Versioning
 | Version | Description | Date |
 | - | - | - |
+| 1.0.2   | Added version number and updated code for SA-agent and auditlogging | 2022/08/22  |
 | 1.0.1   | Added version number and updated all-in-one script | 2021/11/16  |
 | 1.0.0   | Initial release | 2021/04/29  |
 
@@ -44,10 +45,10 @@ After the all-in-one PowerShell script has run and created all the required reso
 ## Manual resources
 This Delegated Form uses the following resources in order to run
 
-### Powershell data source '[powershell-datasource]_Exchange-On-premise-CreateRoomMailbox-EmailAddress'
+### Powershell data source 'Exchange-On-premise-CreateRoomMailbox-EmailAddress'
 This Powershell data source runs a query to search for the mailbox and emailaddress.
 
-### Delegated form task '[task]_Exchange-On-premise-CreateRoomMailbox-CreateRoomMailbox.ps1'
+### Delegated form task 'Exchange on-premise - Create Room Mailbox'
 This delegated form task wil create the room mailbox
 
 ## Getting help

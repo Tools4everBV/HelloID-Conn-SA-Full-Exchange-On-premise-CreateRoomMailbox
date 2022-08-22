@@ -10,12 +10,12 @@ $emailAddress = $datasource.emailaddress
 try{
     $adminSecurePassword = ConvertTo-SecureString -String $ExchangeAdminPassword -AsPlainText -Force
     $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername,$adminSecurePassword
-    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
-    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ExchangeConnectionUri -Credential $adminCredential -Authentication Basic -AllowRedirection -SessionOption $sessionOption
+    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck #-SkipRevocationCheck
+    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ExchangeConnectionUri -Credential $adminCredential -Authentication Default -AllowRedirection -SessionOption $sessionOption
     $null = Import-PSSession -Session $exchangeSession -AllowClobber -CommandName Get-Mailbox, Get-AcceptedDomain
-    Write-Information "Successfully connected to Exchange '$ExchangeConnectionUri'"
+    Write-Information "Successfully connected to Exchange using the URI '[$ExchangeConnectionUri]'"
 } catch {
-    Write-Error "Error connecting to Exchange using the URI '$exchangeConnectionUri', Message '$($_.Exception.Message)'"
+    Write-Error "Error connecting to Exchange using the URI '[$exchangeConnectionUri]', Message '$($_.Exception.Message)'"
 }
 
 try {
@@ -59,5 +59,13 @@ try {
     Write-Output $returnObject
 } catch {
     Write-Error "Error generating name, Message '$($_.Exception.Message)'"
+}
+
+# Disconnect from Exchange
+try{
+    Remove-PsSession -Session $exchangeSession -Confirm:$false -ErrorAction Stop
+    Write-Information "Successfully disconnected from Exchange using the URI [$exchangeConnectionUri]"        
+} catch {
+    Write-Error "Error disconnecting from Exchange.  Error: $($_.Exception.Message)"
 }
 

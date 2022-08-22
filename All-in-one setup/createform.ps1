@@ -7,7 +7,7 @@ $portalUrl = "https://CUSTOMER.helloid.com"
 $apiKey = "API_KEY"
 $apiSecret = "API_SECRET"
 $delegatedFormAccessGroupNames = @("Users") #Only unique names are supported. Groups must exist!
-$delegatedFormCategories = @("Exchange Administration","Exchange On-Premise","Exchange Online") #Only unique names are supported. Categories will be created if not exists
+$delegatedFormCategories = @("Exchange Administration","Exchange On-Premise") #Only unique names are supported. Categories will be created if not exists
 $script:debugLogging = $false #Default value: $false. If $true, the HelloID resource GUIDs will be shown in the logging
 $script:duplicateForm = $false #Default value: $false. If $true, the HelloID resource names will be changed to import a duplicate Form
 $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID resource names to generate a duplicate form with different resource names
@@ -16,27 +16,34 @@ $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID re
 #NOTE: You can also update the HelloID Global variable values afterwards in the HelloID Admin Portal: https://<CUSTOMER>.helloid.com/admin/variablelibrary
 $globalHelloIDVariables = [System.Collections.Generic.List[object]]@();
 
-#Global variable #1 >> exchangeAdminPassword
+#Global variable #1 >> ADRoomMailboxOU
 $tmpName = @'
-exchangeAdminPassword
-'@ 
-$tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
-
-#Global variable #2 >> exchangeAdminUsername
-$tmpName = @'
-exchangeAdminUsername
+ADRoomMailboxOU
 '@ 
 $tmpValue = @'
-TestAdmin@freque.nl
+OU=Shared Mailbox Users,DC=Enyoi,DC=local
 '@ 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
-#Global variable #3 >> ExchangeConnectionUri
+#Global variable #2 >> ExchangeConnectionUri
 $tmpName = @'
 ExchangeConnectionUri
 '@ 
+$tmpValue = ""  
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #3 >> ExchangeAdminPassword
+$tmpName = @'
+ExchangeAdminPassword
+'@ 
 $tmpValue = "" 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #4 >> ExchangeAdminUsername
+$tmpName = @'
+ExchangeAdminUsername
+'@ 
+$tmpValue = ""  
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
 
@@ -102,7 +109,7 @@ function Invoke-HelloIDGlobalVariable {
                 secret   = $Secret;
                 ItemType = 0;
             }    
-            $body = ConvertTo-Json -InputObject $body
+            $body = ConvertTo-Json -InputObject $body -Depth 100
     
             $uri = ($script:PortalBaseUrl + "api/v1/automation/variable")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -148,7 +155,7 @@ function Invoke-HelloIDAutomationTask {
                 objectGuid          = $ObjectGuid;
                 variables           = (ConvertFrom-Json-WithEmptyArray($Variables));
             }
-            $body = ConvertTo-Json -InputObject $body
+            $body = ConvertTo-Json -InputObject $body -Depth 100
     
             $uri = ($script:PortalBaseUrl +"api/v1/automationtasks/powershell")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -203,7 +210,7 @@ function Invoke-HelloIDDatasource {
                 script             = $DatasourcePsScript;
                 input              = (ConvertFrom-Json-WithEmptyArray($DatasourceInput));
             }
-            $body = ConvertTo-Json -InputObject $body
+            $body = ConvertTo-Json -InputObject $body -Depth 100
       
             $uri = ($script:PortalBaseUrl +"api/v1/datasource")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -268,10 +275,11 @@ function Invoke-HelloIDDelegatedForm {
     param(
         [parameter(Mandatory)][String]$DelegatedFormName,
         [parameter(Mandatory)][String]$DynamicFormGuid,
-        [parameter()][String][AllowEmptyString()]$AccessGroups,
+        [parameter()][Array][AllowEmptyString()]$AccessGroups,
         [parameter()][String][AllowEmptyString()]$Categories,
         [parameter(Mandatory)][String]$UseFaIcon,
         [parameter()][String][AllowEmptyString()]$FaIcon,
+        [parameter()][String][AllowEmptyString()]$task,
         [parameter(Mandatory)][Ref]$returnObject
     )
     $delegatedFormCreated = $false
@@ -291,11 +299,16 @@ function Invoke-HelloIDDelegatedForm {
                 name            = $DelegatedFormName;
                 dynamicFormGUID = $DynamicFormGuid;
                 isEnabled       = "True";
-                accessGroups    = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
                 useFaIcon       = $UseFaIcon;
                 faIcon          = $FaIcon;
-            }    
-            $body = ConvertTo-Json -InputObject $body
+                task            = ConvertFrom-Json -inputObject $task;
+            }
+            if(-not[String]::IsNullOrEmpty($AccessGroups)) { 
+                $body += @{
+                    accessGroups    = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
+                }
+            }
+            $body = ConvertTo-Json -InputObject $body -Depth 100
     
             $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -320,6 +333,8 @@ function Invoke-HelloIDDelegatedForm {
     $returnObject.value.guid = $delegatedFormGuid
     $returnObject.value.created = $delegatedFormCreated
 }
+
+
 <# Begin: HelloID Global Variables #>
 foreach ($item in $globalHelloIDVariables) {
 	Invoke-HelloIDGlobalVariable -Name $item.name -Value $item.value -Secret $item.secret 
@@ -342,12 +357,12 @@ $emailAddress = $datasource.emailaddress
 try{
     $adminSecurePassword = ConvertTo-SecureString -String $ExchangeAdminPassword -AsPlainText -Force
     $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername,$adminSecurePassword
-    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
-    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ExchangeConnectionUri -Credential $adminCredential -Authentication Basic -AllowRedirection -SessionOption $sessionOption
+    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck #-SkipRevocationCheck
+    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ExchangeConnectionUri -Credential $adminCredential -Authentication Default -AllowRedirection -SessionOption $sessionOption
     $null = Import-PSSession -Session $exchangeSession -AllowClobber -CommandName Get-Mailbox, Get-AcceptedDomain
-    Write-Information "Successfully connected to Exchange '$ExchangeConnectionUri'"
+    Write-Information "Successfully connected to Exchange using the URI '[$ExchangeConnectionUri]'"
 } catch {
-    Write-Error "Error connecting to Exchange using the URI '$exchangeConnectionUri', Message '$($_.Exception.Message)'"
+    Write-Error "Error connecting to Exchange using the URI '[$exchangeConnectionUri]', Message '$($_.Exception.Message)'"
 }
 
 try {
@@ -393,9 +408,17 @@ try {
     Write-Error "Error generating name, Message '$($_.Exception.Message)'"
 }
 
+# Disconnect from Exchange
+try{
+    Remove-PsSession -Session $exchangeSession -Confirm:$false -ErrorAction Stop
+    Write-Information "Successfully disconnected from Exchange using the URI [$exchangeConnectionUri]"        
+} catch {
+    Write-Error "Error disconnecting from Exchange.  Error: $($_.Exception.Message)"
+}
+
 '@ 
 $tmpModel = @'
-[{"key":"displayname","type":0},{"key":"userPrincipalName","type":0},{"key":"EmailAddress","type":0}]
+[{"key":"EmailAddress","type":0},{"key":"userPrincipalName","type":0},{"key":"displayname","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":null,"translateDescription":false,"inputFieldType":1,"key":"RoomName","type":0,"options":1},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"EmailAddress","type":0,"options":1}]
@@ -469,33 +492,37 @@ Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_0_Name -DatasourceType 
 <# End: DataSource "Exchange-On-premise-CreateRoomMailbox-EmailAddress" #>
 <# End: HelloID Data sources #>
 
-<# Begin: Dynamic Form "Exchange On-premise Create Room Mailbox" #>
+<# Begin: Dynamic Form "Exchange on-premise - Create Room Mailbox" #>
 $tmpSchema = @"
-[{"label":"Details","fields":[{"key":"RoomName","templateOptions":{"label":"RoomName","required":true,"minLength":2},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"emailAddress","templateOptions":{"label":"EmailAddress","useDataSource":false,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"emailAddress","staticValue":{"value":"EmailAddress"}}]}},"displayField":"EmailAddress"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"ResourceCapacity","templateOptions":{"label":"ResourceCapacity","placeholder":"10"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]},{"label":"Naming","fields":[{"key":"Naming","templateOptions":{"label":"RoomMail that will be created","required":false,"grid":{"columns":[{"headerName":"Displayname","field":"displayname"},{"headerName":"User Principal Name","field":"userPrincipalName"},{"headerName":"Email Address","field":"EmailAddress"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"RoomName","otherFieldValue":{"otherFieldKey":"RoomName"}},{"propertyName":"EmailAddress","staticValue":{"value":"EmailAddress"}}]}},"useDefault":false},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]}]
+[{"label":"Details","fields":[{"key":"RoomName","templateOptions":{"label":"RoomName","required":true,"minLength":2},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"emailAddress","templateOptions":{"label":"EmailAddress","useDataSource":false,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"emailAddress","staticValue":{"value":"EmailAddress"}}]}},"displayField":"EmailAddress"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"ResourceCapacity","templateOptions":{"label":"ResourceCapacity","placeholder":"10"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]},{"label":"Naming","fields":[{"key":"Naming","templateOptions":{"label":"Roommailbox that will be created","required":true,"grid":{"columns":[{"headerName":"Displayname","field":"displayname"},{"headerName":"User Principal Name","field":"userPrincipalName"},{"headerName":"Email Address","field":"EmailAddress"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"RoomName","otherFieldValue":{"otherFieldKey":"RoomName"}},{"propertyName":"EmailAddress","otherFieldValue":{"otherFieldKey":"emailAddress"}}]}},"useDefault":true,"defaultSelectorProperty":"displayname"},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]}]
 "@ 
 
 $dynamicFormGuid = [PSCustomObject]@{} 
 $dynamicFormName = @'
-Exchange On-premise Create Room Mailbox
+Exchange on-premise - Create Room Mailbox
 '@ 
 Invoke-HelloIDDynamicForm -FormName $dynamicFormName -FormSchema $tmpSchema  -returnObject ([Ref]$dynamicFormGuid) 
 <# END: Dynamic Form #>
 
 <# Begin: Delegated Form Access Groups and Categories #>
 $delegatedFormAccessGroupGuids = @()
-foreach($group in $delegatedFormAccessGroupNames) {
-    try {
-        $uri = ($script:PortalBaseUrl +"api/v1/groups/$group")
-        $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
-        $delegatedFormAccessGroupGuid = $response.groupGuid
-        $delegatedFormAccessGroupGuids += $delegatedFormAccessGroupGuid
-        
-        Write-Information "HelloID (access)group '$group' successfully found$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormAccessGroupGuid })"
-    } catch {
-        Write-Error "HelloID (access)group '$group', message: $_"
+if(-not[String]::IsNullOrEmpty($delegatedFormAccessGroupNames)){
+    foreach($group in $delegatedFormAccessGroupNames) {
+        try {
+            $uri = ($script:PortalBaseUrl +"api/v1/groups/$group")
+            $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
+            $delegatedFormAccessGroupGuid = $response.groupGuid
+            $delegatedFormAccessGroupGuids += $delegatedFormAccessGroupGuid
+            
+            Write-Information "HelloID (access)group '$group' successfully found$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormAccessGroupGuid })"
+        } catch {
+            Write-Error "HelloID (access)group '$group', message: $_"
+        }
+    }
+    if($null -ne $delegatedFormAccessGroupGuids){
+        $delegatedFormAccessGroupGuids = ($delegatedFormAccessGroupGuids | Select-Object -Unique | ConvertTo-Json -Depth 100 -Compress)
     }
 }
-$delegatedFormAccessGroupGuids = ($delegatedFormAccessGroupGuids | Select-Object -Unique | ConvertTo-Json -Compress)
 
 $delegatedFormCategoryGuids = @()
 foreach($category in $delegatedFormCategories) {
@@ -511,7 +538,7 @@ foreach($category in $delegatedFormCategories) {
         $body = @{
             name = @{"en" = $category};
         }
-        $body = ConvertTo-Json -InputObject $body
+        $body = ConvertTo-Json -InputObject $body -Depth 100
 
         $uri = ($script:PortalBaseUrl +"api/v1/delegatedformcategories")
         $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
@@ -521,89 +548,18 @@ foreach($category in $delegatedFormCategories) {
         Write-Information "HelloID Delegated Form category '$category' successfully created$(if ($script:debugLogging -eq $true) { ": " + $tmpGuid })"
     }
 }
-$delegatedFormCategoryGuids = (ConvertTo-Json -InputObject $delegatedFormCategoryGuids -Compress)
+$delegatedFormCategoryGuids = (ConvertTo-Json -InputObject $delegatedFormCategoryGuids -Depth 100 -Compress)
 <# End: Delegated Form Access Groups and Categories #>
 
 <# Begin: Delegated Form #>
 $delegatedFormRef = [PSCustomObject]@{guid = $null; created = $null} 
 $delegatedFormName = @'
-Exchange On-premise Create Room Mailbox
+Exchange on-premise - Create Room Mailbox
 '@
-Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-file-text-o" -returnObject ([Ref]$delegatedFormRef) 
-<# End: Delegated Form #>
-
-<# Begin: Delegated Form Task #>
-if($delegatedFormRef.created -eq $true) { 
-	$tmpScript = @'
-##############################################################
-# HelloID-Conn-SA-Full-Exchange-On-Premises-RoomMailboxCreate
-##############################################################
-
-# Connect to Exchange
-try{
-    $adminSecurePassword = ConvertTo-SecureString -String $ExchangeAdminPassword -AsPlainText -Force
-    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername,$adminSecurePassword
-    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
-    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $ExchangeConnectionUri -Credential $adminCredential -Authentication Basic -AllowRedirection -SessionOption $sessionOption
-    Import-PSSession $exchangeSession
-    HID-Write-Status -Message "Successfully connected to Exhchange '$ExchangeConnectionUri'" -Event Information
-} catch {
-    HID-Write-Status -Message "Error connecting to Exchange using the URI [$exchangeConnectionUri]" -Event Error
-    HID-Write-Status -Message "Error at line: $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Exchange using the URI [$exchangeConnectionUri]" -Event Failed
-}
-
-function New-Password {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [int]
-        $length,
-
-        [int]
-        $SpecialCharCount = 4
-    )
-
-    Add-Type -AssemblyName System.Web
-    $password = [System.Web.Security.Membership]::GeneratePassword($length, $SpecialCharCount)
-
-    Write-Output $password
-}
-
-# Create mailbox
-try {
-    $password = New-Password -Length 10 -SpecialCharCount 2
-    $roomMailboxParams = @{
-        Name              = $RoomName
-        DisplayName       = $RoomName
-        ResourceCapacity  = $ResourceCapacity
-        Password          = (ConvertTo-SecureString -AsPlainText $password -Force)
-        PrimarySmtpAddress= $EmailAddress
-    }
-    $null = New-Mailbox @roomMailboxParams -Room
-    HID-Write-Status -Message "Successfully created room mailbox $RoomName" -Event Success
-    HID-Write-Summary -Message "Successfully created room mailbox $RoomName" -Event Success
-} catch {
-    $ex = $_
-    HID-Write-Status -Message "Error creating room mailbox '$RoomName', Message '$ex.Exception.Message'" -Event Error
-    HID-Write-Summary -Message "Error creating room mailbox '$RoomName', Message '$ex.Exception.Message'" -Event Error
-}
-
-# Disconnect from Exchange
-Remove-PsSession -Session $exchangeSession
-HID-Write-Status -Message "Successfully disconnected from Exchange" -Event Success
-'@; 
-
-	$tmpVariables = @'
-[{"name":"EmailAddress","value":"{{form.Naming.EmailAddress}}","secret":false,"typeConstraint":"string"},{"name":"ResourceCapacity","value":"{{form.ResourceCapacity}}","secret":false,"typeConstraint":"string"},{"name":"RoomName","value":"{{form.Naming.displayname}}","secret":false,"typeConstraint":"string"}]
+$tmpTask = @'
+{"name":"Exchange on-premise - Create Room Mailbox","script":"$VerbosePreference = \"SilentlyContinue\"\r\n$InformationPreference = \"Continue\"\r\n$WarningPreference = \"Continue\"\r\n\r\n# variables configured in form\r\n$EmailAddress = $form.naming.EmailAddress \r\n$ResourceCapacity = $form.ResourceCapacity\r\n$RoomName = $form.naming.DisplayName\r\n\r\n# Connect to Exchange\r\ntry{\r\n    $adminSecurePassword = ConvertTo-SecureString -String \"$ExchangeAdminPassword\" -AsPlainText -Force\r\n    $adminCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ExchangeAdminUsername,$adminSecurePassword\r\n    $sessionOption = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck\r\n    $exchangeSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri $exchangeConnectionUri -Credential $adminCredential -SessionOption $sessionOption -ErrorAction Stop \r\n    #-AllowRedirection\r\n    $session = Import-PSSession $exchangeSession -DisableNameChecking -AllowClobber\r\n    Write-Information \"Successfully connected to Exchange using the URI [$exchangeConnectionUri]\" \r\n    \r\n    $Log = @{\r\n            Action            = \"CreateResource\" # optional. ENUM (undefined = default) \r\n            System            = \"Exchange On-Premise\" # optional (free format text) \r\n            Message           = \"Successfully connected to Exchange using the URI [$exchangeConnectionUri]\" # required (free format text) \r\n            IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n            TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n        }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n} catch {\r\n    Write-Error \"Error connecting to Exchange using the URI [$exchangeConnectionUri]. Error: $($_.Exception.Message)\"\r\n    $Log = @{\r\n            Action            = \"CreateResource\" # optional. ENUM (undefined = default) \r\n            System            = \"Exchange On-Premise\" # optional (free format text) \r\n            Message           = \"Failed to connect to Exchange using the URI [$exchangeConnectionUri].\" # required (free format text) \r\n            IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n            TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n        }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}\r\n\r\nFunction GenerateStrongPassword ([Parameter(Mandatory=$true)][int]$PasswordLenght)\r\n{\r\n    Add-Type -AssemblyName System.Web\r\n    $PassComplexCheck = $false\r\n    do \r\n    {\r\n        $newPassword=[System.Web.Security.Membership]::GeneratePassword($PasswordLenght,1)\r\n        If ( ($newPassword -cmatch \"[A-Z\\p{Lu}\\s]\") `\r\n        -and ($newPassword -cmatch \"[a-z\\p{Ll}\\s]\") `\r\n        -and ($newPassword -match \"[\\d]\") `\r\n        -and ($newPassword -match \"[^\\w]\")\r\n        )\r\n        {\r\n            $PassComplexCheck=$True\r\n        }\r\n    } While ($PassComplexCheck -eq $false)\r\n    return $newPassword\r\n}\r\n\r\n# Create mailbox\r\ntry {\r\n    $password = GenerateStrongPassword(10)\r\n    $roomMailboxParams = @{\r\n        Name               = $RoomName\r\n        DisplayName        = $RoomName\r\n        ResourceCapacity   = $ResourceCapacity\r\n        Password           = (ConvertTo-SecureString -AsPlainText $password -Force)\r\n        OrganizationalUnit = $ADRoomMailboxOU\r\n        PrimarySmtpAddress = $EmailAddress        \r\n    }\r\n    $mailbox = New-Mailbox @roomMailboxParams -Room -ErrorAction Stop\r\n    Write-Information \"Successfully created room mailbox [$RoomName]\"\r\n\r\n    $Log = @{\r\n            Action            = \"CreateResource\" # optional. ENUM (undefined = default) \r\n            System            = \"Exchange On-Premise\" # optional (free format text) \r\n            Message           = \"Successfully created room mailbox [$RoomName].\" # required (free format text) \r\n            IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $RoomName # optional (free format text) \r\n            TargetIdentifier  = $([string]$mailbox.Guid) # optional (free format text) \r\n        }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n    \r\n} catch {\r\n    Write-Error \"Error creating room mailbox \u0027[$RoomName]\u0027, Error: $($_.Exception.Message)\"    \r\n    $Log = @{\r\n            Action            = \"CreateResource\" # optional. ENUM (undefined = default) \r\n            System            = \"Exchange On-Premise\" # optional (free format text) \r\n            Message           = \"Error creating shared mailbox for [$RoomName].\" # required (free format text) \r\n            IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $RoomName # optional (free format text) \r\n            TargetIdentifier  = $([string]$mailbox.SID) # optional (free format text) \r\n        }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n    \r\n}\r\n\r\n# Disconnect from Exchange\r\ntry{\r\n    Remove-PsSession -Session $exchangeSession -Confirm:$false -ErrorAction Stop\r\n    Write-Information \"Successfully disconnected from Exchange using the URI [$exchangeConnectionUri]\"     \r\n    $Log = @{\r\n            Action            = \"CreateResource\" # optional. ENUM (undefined = default) \r\n            System            = \"Exchange On-Premise\" # optional (free format text) \r\n            Message           = \"Successfully disconnected from Exchange using the URI [$exchangeConnectionUri]\" # required (free format text) \r\n            IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n            TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n        }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n} catch {\r\n    Write-Error \"Error disconnecting from Exchange.  Error: $($_.Exception.Message)\"\r\n    $Log = @{\r\n            Action            = \"CreateResource\" # optional. ENUM (undefined = default) \r\n            System            = \"Exchange On-Premise\" # optional (free format text) \r\n            Message           = \"Failed to disconnect from Exchange using the URI [$exchangeConnectionUri].\" # required (free format text) \r\n            IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $exchangeConnectionUri # optional (free format text) \r\n            TargetIdentifier  = $([string]$session.GUID) # optional (free format text) \r\n        }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}","runInCloud":false}
 '@ 
 
-	$delegatedFormTaskGuid = [PSCustomObject]@{} 
-$delegatedFormTaskName = @'
-Exchange-On-premise-CreateRoomMailbox-CreateRoomMailbox
-'@
-	Invoke-HelloIDAutomationTask -TaskName $delegatedFormTaskName -UseTemplate "False" -AutomationContainer "8" -Variables $tmpVariables -PowershellScript $tmpScript -ObjectGuid $delegatedFormRef.guid -ForceCreateTask $true -returnObject ([Ref]$delegatedFormTaskGuid) 
-} else {
-	Write-Warning "Delegated form '$delegatedFormName' already exists. Nothing to do with the Delegated Form task..." 
-}
-<# End: Delegated Form Task #>
+Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-file-text-o" -task $tmpTask -returnObject ([Ref]$delegatedFormRef) 
+<# End: Delegated Form #>
+

@@ -61,8 +61,8 @@
                        {
                            "key":  "Naming",
                            "templateOptions":  {
-                                                   "label":  "RoomMail that will be created",
-                                                   "required":  false,
+                                                   "label":  "Roommailbox that will be created",
+                                                   "required":  true,
                                                    "grid":  {
                                                                 "columns":  [
                                                                                 {
@@ -93,14 +93,15 @@
                                                                                                                  },
                                                                                                                  {
                                                                                                                      "propertyName":  "EmailAddress",
-                                                                                                                     "staticValue":  {
-                                                                                                                                         "value":  "EmailAddress"
-                                                                                                                                     }
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "emailAddress"
+                                                                                                                                         }
                                                                                                                  }
                                                                                                              ]
                                                                                       }
                                                                         },
-                                                   "useDefault":  false
+                                                   "useDefault":  true,
+                                                   "defaultSelectorProperty":  "displayname"
                                                },
                            "type":  "grid",
                            "summaryVisibility":  "Show",

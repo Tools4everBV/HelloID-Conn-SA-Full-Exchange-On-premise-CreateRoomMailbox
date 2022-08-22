@@ -1,6 +1,6 @@
 [
     {
-        "key":  "displayname",
+        "key":  "EmailAddress",
         "type":  0
     },
     {
@@ -8,7 +8,7 @@
         "type":  0
     },
     {
-        "key":  "EmailAddress",
+        "key":  "displayname",
         "type":  0
     }
 ]
